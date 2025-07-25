@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Vision - Admin Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .login-section {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .admin-panel {
+            display: none;
+        }
+
+        .admin-panel.active {
+            display: block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .section h2 {
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-success {
+            background: #27ae60;
+        }
+
+        .btn-success:hover {
+            background: #219a52;
+        }
+
+        .api-keys-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .api-keys-table th,
+        .api-keys-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e1e5e9;
+        }
+
+        .api-keys-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .api-keys-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .user-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .api-key-preview {
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 4px;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .usage-count {
+            font-weight: bold;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔑 Admin Panel</h1>
+            <p>Manage API Keys & Monitor Usage</p>
+        </div>
+
+        <!-- Login Section -->
+        <div id="loginSection" class="login-section">
+            <h2 style="text-align: center; margin-bottom: 30px;">Admin Login</h2>
+            
+            <div id="loginError" class="error" style="display: none;"></div>
+            
+            <div class="form-group">
+                <label for="adminEmail">Email</label>
+                <input type="email" id="adminEmail" placeholder="Enter admin email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="adminPassword">Password</label>
+                <input type="password" id="adminPassword" placeholder="Enter password" required>
+            </div>
+            
+            <button id="loginBtn" class="btn" style="width: 100%;">Login</button>
+        </div>
+
+        <!-- Admin Panel -->
+        <div id="adminPanel" class="admin-panel">
+            <!-- User Info -->
+            <div class="user-info">
+                <div>
+                    <strong>Welcome, <span id="adminEmailDisplay"></span></strong>
+                    <br><small>Admin Access</small>
+                </div>
+                <button id="logoutBtn" class="btn btn-danger">Logout</button>
+            </div>
+
+            <!-- Statistics -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalKeysCount">-</div>
+                    <div class="stat-label">Total API Keys</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="activeKeysCount">-</div>
+                    <div class="stat-label">Active Keys</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalUsersCount">-</div>
+                    <div class="stat-label">Total Users</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalUsageCount">-</div>
+                    <div class="stat-label">Total API Calls</div>
+                </div>
+            </div>
+
+            <!-- Add New API Key -->
+            <div class="section">
+                <h2>Add New API Key</h2>
+                
+                <div id="addKeyError" class="error" style="display: none;"></div>
+                <div id="addKeySuccess" class="success" style="display: none;"></div>
+                
+                <div class="form-group">
+                    <label for="keyName">Key Name</label>
+                    <input type="text" id="keyName" placeholder="Enter a descriptive name for this API key">
+                </div>
+                
+                <div class="form-group">
+                    <label for="apiKeyInput">Gemini API Key</label>
+                    <textarea id="apiKeyInput" rows="3" placeholder="Enter the Gemini API key"></textarea>
+                </div>
+                
+                <button id="addKeyBtn" class="btn btn-success">Add API Key</button>
+            </div>
+
+            <!-- API Keys Management -->
+            <div class="section">
+                <h2>Manage API Keys</h2>
+                
+                <div id="keysLoading" class="loading">Loading API keys...</div>
+                
+                <table id="apiKeysTable" class="api-keys-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>API Key</th>
+                            <th>Status</th>
+                            <th>Usage Count</th>
+                            <th>Last Used</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="apiKeysTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>
