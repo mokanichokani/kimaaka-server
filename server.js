@@ -20,9 +20,66 @@ if (process.env.MONGODB_URI) {
 
 const app = express();
 
+// Enhanced CORS configuration for Chrome Extension and Admin Dashboard
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps, Postman, Chrome extensions)
+        if (!origin) return callback(null, true);
+        
+        // Allow Chrome extension origins
+        if (origin.startsWith('chrome-extension://')) {
+            return callback(null, true);
+        }
+        
+        // Allow moz-extension for Firefox
+        if (origin.startsWith('moz-extension://')) {
+            return callback(null, true);
+        }
+        
+        // Allow localhost for development
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+            return callback(null, true);
+        }
+        
+        // Allow admin dashboard origins
+        const allowedOrigins = [
+            'https://kimaaka-admin.netlify.app',
+            'https://kimaaka-admin.vercel.app',
+            'null' // For local file access
+        ];
+        
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        
+        // Allow all origins for now (can be restricted later)
+        return callback(null, true);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Additional CORS headers for Chrome Extensions
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+        res.sendStatus(200);
+        return;
+    }
+    
+    next();
+});
 
 // Logging middleware to track all requests
 app.use((req, res, next) => {
