@@ -877,19 +877,49 @@ app.get('/api/health', async (req, res) => {
             3: 'disconnecting'
         };
         
-        const [adminKeysCount, donatedKeysCount] = await Promise.all([
+        const [adminKeysCount, donatedKeysCount, totalUsers, serverUsage] = await Promise.all([
             ApiKey.countDocuments({ status: 'active' }),
-            DonatedApiKey.countDocuments({ status: 'active' })
+            DonatedApiKey.countDocuments({ status: 'active' }),
+            User.countDocuments(),
+            ServerUsage.findOne({ serverUrl: process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}` })
         ]);
 
         if (dbState === 1) {
             await mongoose.connection.db.admin().ping();
+            
+            // Calculate additional statistics
+            const memoryUsage = process.memoryUsage();
+            const memoryUsageMB = {
+                rss: Math.round(memoryUsage.rss / 1024 / 1024),
+                heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024),
+                heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+                external: Math.round(memoryUsage.external / 1024 / 1024)
+            };
+            
+            // Server usage statistics
+            const usageStats = serverUsage ? {
+                totalAllocations: serverUsage.totalAllocations,
+                totalApiCalls: serverUsage.totalApiCalls,
+                successfulRequests: serverUsage.successfulRequests,
+                failedRequests: serverUsage.failedRequests,
+                averageResponseTime: serverUsage.averageResponseTime,
+                lastUsed: serverUsage.lastUsed,
+                uptime: Math.floor(process.uptime())
+            } : null;
+            
             res.json({ 
                 status: 'healthy', 
                 database: 'connected',
                 uptime: process.uptime(),
-                memory: process.memoryUsage(),
+                memory: memoryUsage,
+                memoryMB: memoryUsageMB,
+                adminKeysCount,
+                donatedKeysCount,
+                totalUsers,
                 apiKeysCount: adminKeysCount + donatedKeysCount,
+                serverStats: usageStats,
+                nodeVersion: process.version,
+                platform: process.platform,
                 timestamp: new Date().toISOString()
             });
         } else {
@@ -1415,19 +1445,101 @@ app.delete('/api/admin/auth/users/:userId', authenticateToken, async (req, res) 
 // Get admin stats for overview
 app.get('/api/admin/stats', authenticateToken, async (req, res) => {
     try {
-        const [totalApiKeys, activeApiKeys, donatedApiKeys, totalUsers] = await Promise.all([
+        const [
+            totalApiKeysCount,
+            activeApiKeysCount,
+            donatedApiKeysCount,
+            totalDonatedKeysCount,
+            totalUsers,
+            adminKeys,
+            donatedKeys,
+            serverUsage
+        ] = await Promise.all([
             ApiKey.countDocuments(),
             ApiKey.countDocuments({ status: 'active' }),
             DonatedApiKey.countDocuments({ status: 'active' }),
-            User.countDocuments()
+            DonatedApiKey.countDocuments(),
+            User.countDocuments(),
+            ApiKey.find({ status: 'active' }).select('usageCount allocationCount lastUsed'),
+            DonatedApiKey.find({ status: 'active' }).select('usageCount allocationCount lastUsed'),
+            ServerUsage.findOne({ port: getCurrentServerPort() })
         ]);
 
-        res.json({
-            totalApiKeys: totalApiKeys + await DonatedApiKey.countDocuments(),
-            activeApiKeys: activeApiKeys + donatedApiKeys,
-            donatedApiKeys,
-            totalUsers
-        });
+        // Calculate total API calls from all keys
+        const adminTotalCalls = adminKeys.reduce((sum, key) => sum + (key.usageCount || 0), 0);
+        const donatedTotalCalls = donatedKeys.reduce((sum, key) => sum + (key.usageCount || 0), 0);
+        const totalApiCalls = adminTotalCalls + donatedTotalCalls;
+
+        // Calculate total allocations from all keys
+        const adminTotalAllocations = adminKeys.reduce((sum, key) => sum + (key.allocationCount || 0), 0);
+        const donatedTotalAllocations = donatedKeys.reduce((sum, key) => sum + (key.allocationCount || 0), 0);
+        const totalAllocations = adminTotalAllocations + donatedTotalAllocations;
+
+        // Server-specific statistics
+        const serverStats = serverUsage ? {
+            totalServerAllocations: serverUsage.totalAllocations,
+            totalServerApiCalls: serverUsage.totalApiCalls,
+            successfulRequests: serverUsage.successfulRequests,
+            failedRequests: serverUsage.failedRequests,
+            averageResponseTime: serverUsage.averageResponseTime,
+            lastUsed: serverUsage.lastUsed,
+            serverUptime: Math.floor(process.uptime()),
+            isOnline: serverUsage.isOnline
+        } : {
+            totalServerAllocations: 0,
+            totalServerApiCalls: 0,
+            successfulRequests: 0,
+            failedRequests: 0,
+            averageResponseTime: 0,
+            lastUsed: null,
+            serverUptime: Math.floor(process.uptime()),
+            isOnline: true
+        };
+
+        // Calculate success rate
+        const totalRequests = serverStats.successfulRequests + serverStats.failedRequests;
+        const successRate = totalRequests > 0 ? 
+            ((serverStats.successfulRequests / totalRequests) * 100).toFixed(1) : '100.0';
+
+        // Most recent API key usage
+        const allKeys = [...adminKeys, ...donatedKeys];
+        const mostRecentUsage = allKeys
+            .filter(key => key.lastUsed)
+            .sort((a, b) => new Date(b.lastUsed) - new Date(a.lastUsed))[0];
+
+        const response = {
+            // Basic counts
+            totalApiKeys: totalApiKeysCount + totalDonatedKeysCount,
+            activeApiKeys: activeApiKeysCount + donatedApiKeysCount,
+            donatedApiKeys: donatedApiKeysCount,
+            totalUsers,
+            
+            // API call statistics
+            totalApiCalls,
+            adminApiCalls: adminTotalCalls,
+            donatedApiCalls: donatedTotalCalls,
+            
+            // Allocation statistics
+            totalAllocations,
+            adminAllocations: adminTotalAllocations,
+            donatedAllocations: donatedTotalAllocations,
+            
+            // Server statistics
+            ...serverStats,
+            successRate,
+            
+            // Usage metadata
+            mostRecentUsage: mostRecentUsage ? {
+                timestamp: mostRecentUsage.lastUsed,
+                timeAgo: new Date() - new Date(mostRecentUsage.lastUsed)
+            } : null,
+            
+            // Current server info
+            currentServerPort: getCurrentServerPort(),
+            lastUpdated: new Date().toISOString()
+        };
+
+        res.json(response);
     } catch (error) {
         console.error('Admin stats error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -1472,6 +1584,143 @@ app.get('/api/admin/recent-activity', authenticateToken, async (req, res) => {
         res.json(activities.slice(0, 20));
     } catch (error) {
         console.error('Recent activity error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get comprehensive usage statistics with date/time breakdown
+app.get('/api/admin/usage-statistics', authenticateToken, async (req, res) => {
+    try {
+        const { days = 30 } = req.query;
+        const daysInt = parseInt(days);
+        
+        // Get server usage data
+        const currentServerUsage = await ServerUsage.findOne({ port: getCurrentServerPort() });
+        const allServerUsage = await ServerUsage.find();
+        
+        // Get API key usage data
+        const [adminKeys, donatedKeys] = await Promise.all([
+            ApiKey.find({ status: 'active' }).select('usageCount allocationCount lastUsed createdAt keyName'),
+            DonatedApiKey.find({ status: 'active' }).select('usageCount allocationCount lastUsed createdAt donorEmail')
+        ]);
+        
+        // Calculate daily usage breakdown from server data
+        const dailyUsage = {};
+        
+        if (currentServerUsage && currentServerUsage.dailyStats) {
+            currentServerUsage.dailyStats
+                .filter(stat => {
+                    const daysDiff = (new Date() - new Date(stat.date)) / (1000 * 60 * 60 * 24);
+                    return daysDiff <= daysInt;
+                })
+                .forEach(stat => {
+                    const dateKey = new Date(stat.date).toISOString().split('T')[0];
+                    dailyUsage[dateKey] = {
+                        date: dateKey,
+                        allocations: stat.allocations,
+                        apiCalls: stat.apiCalls,
+                        successfulRequests: stat.successfulRequests,
+                        failedRequests: stat.failedRequests,
+                        averageResponseTime: stat.averageResponseTime
+                    };
+                });
+        }
+        
+        // Calculate hourly usage for today
+        const hourlyUsage = [];
+        if (currentServerUsage && currentServerUsage.hourlyStats) {
+            const twentyFourHoursAgo = new Date();
+            twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+            
+            currentServerUsage.hourlyStats
+                .filter(stat => new Date(stat.timestamp) >= twentyFourHoursAgo)
+                .forEach(stat => {
+                    hourlyUsage.push({
+                        hour: new Date(stat.timestamp).toISOString(),
+                        allocations: stat.allocations,
+                        apiCalls: stat.apiCalls,
+                        responseTime: stat.responseTime
+                    });
+                });
+        }
+        
+        // API key usage statistics
+        const keyUsageStats = {
+            adminKeys: adminKeys.map(key => ({
+                name: key.keyName || 'Unnamed',
+                usageCount: key.usageCount,
+                allocationCount: key.allocationCount,
+                lastUsed: key.lastUsed,
+                daysSinceCreated: Math.floor((new Date() - new Date(key.createdAt)) / (1000 * 60 * 60 * 24)),
+                daysSinceLastUsed: key.lastUsed ? 
+                    Math.floor((new Date() - new Date(key.lastUsed)) / (1000 * 60 * 60 * 24)) : null
+            })),
+            donatedKeys: donatedKeys.map(key => ({
+                donor: key.donorEmail,
+                usageCount: key.usageCount,
+                allocationCount: key.allocationCount,
+                lastUsed: key.lastUsed,
+                daysSinceCreated: Math.floor((new Date() - new Date(key.createdAt)) / (1000 * 60 * 60 * 24)),
+                daysSinceLastUsed: key.lastUsed ? 
+                    Math.floor((new Date() - new Date(key.lastUsed)) / (1000 * 60 * 60 * 24)) : null
+            }))
+        };
+        
+        // Total usage calculations
+        const totalAdminCalls = adminKeys.reduce((sum, key) => sum + (key.usageCount || 0), 0);
+        const totalDonatedCalls = donatedKeys.reduce((sum, key) => sum + (key.usageCount || 0), 0);
+        const totalAdminAllocations = adminKeys.reduce((sum, key) => sum + (key.allocationCount || 0), 0);
+        const totalDonatedAllocations = donatedKeys.reduce((sum, key) => sum + (key.allocationCount || 0), 0);
+        
+        // Cross-server aggregation
+        const crossServerStats = {
+            totalServers: allServerUsage.length,
+            onlineServers: allServerUsage.filter(s => s.isOnline).length,
+            combinedAllocations: allServerUsage.reduce((sum, s) => sum + s.totalAllocations, 0),
+            combinedApiCalls: allServerUsage.reduce((sum, s) => sum + s.totalApiCalls, 0),
+            combinedSuccessfulRequests: allServerUsage.reduce((sum, s) => sum + s.successfulRequests, 0),
+            combinedFailedRequests: allServerUsage.reduce((sum, s) => sum + s.failedRequests, 0),
+            averageResponseTime: allServerUsage.length > 0 ? 
+                allServerUsage.reduce((sum, s) => sum + s.averageResponseTime, 0) / allServerUsage.length : 0
+        };
+        
+        const response = {
+            summary: {
+                totalApiCalls: totalAdminCalls + totalDonatedCalls,
+                totalAllocations: totalAdminAllocations + totalDonatedAllocations,
+                adminCalls: totalAdminCalls,
+                donatedCalls: totalDonatedCalls,
+                adminAllocations: totalAdminAllocations,
+                donatedAllocations: totalDonatedAllocations,
+                currentServerPort: getCurrentServerPort(),
+                lastUpdated: new Date().toISOString(),
+                periodDays: daysInt
+            },
+            currentServer: {
+                port: getCurrentServerPort(),
+                totalAllocations: currentServerUsage?.totalAllocations || 0,
+                totalApiCalls: currentServerUsage?.totalApiCalls || 0,
+                successfulRequests: currentServerUsage?.successfulRequests || 0,
+                failedRequests: currentServerUsage?.failedRequests || 0,
+                averageResponseTime: currentServerUsage?.averageResponseTime || 0,
+                lastUsed: currentServerUsage?.lastUsed || null,
+                uptime: Math.floor(process.uptime())
+            },
+            crossServerStats,
+            dailyBreakdown: Object.values(dailyUsage).sort((a, b) => new Date(a.date) - new Date(b.date)),
+            hourlyBreakdown: hourlyUsage.sort((a, b) => new Date(a.hour) - new Date(b.hour)),
+            keyUsageStats,
+            metadata: {
+                generatedAt: new Date().toISOString(),
+                serverPort: getCurrentServerPort(),
+                dataRange: `${daysInt} days`,
+                totalKeysTracked: adminKeys.length + donatedKeys.length
+            }
+        };
+        
+        res.json(response);
+    } catch (error) {
+        console.error('Usage statistics error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
