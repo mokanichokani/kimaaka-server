@@ -46,7 +46,7 @@ export const validateGeminiApiKey = async (apiKey: string) => {
 };
 
 // Helper function to get API key using round-robin allocation with validation
-export const getRoundRobinApiKey = async () => {
+export const getRoundRobinApiKey = async (): Promise<string> => {
   const timestamp = new Date().toISOString();
   
   try {
@@ -63,13 +63,17 @@ export const getRoundRobinApiKey = async () => {
     
     // Combine all keys and sort by allocation count
     const allKeys = [
-      ...adminKeys.map(k => ({ ...k, source: 'admin' })),
-      ...donatedKeys.map(k => ({ ...k, source: 'donated' }))
+      ...adminKeys.map(k => ({ ...k, source: 'admin' as const })),
+      ...donatedKeys.map(k => ({ ...k, source: 'donated' as const }))
     ].sort((a, b) => {
-      if (a.allocationCount !== b.allocationCount) {
-        return a.allocationCount - b.allocationCount;
+      const aAllocation = (a as any).allocationCount || 0;
+      const bAllocation = (b as any).allocationCount || 0;
+      if (aAllocation !== bAllocation) {
+        return aAllocation - bAllocation;
       }
-      return (a.lastUsed || new Date(0)).getTime() - (b.lastUsed || new Date(0)).getTime();
+      const aLastUsed = (a as any).lastUsed || new Date(0);
+      const bLastUsed = (b as any).lastUsed || new Date(0);
+      return aLastUsed.getTime() - bLastUsed.getTime();
     });
     
     if (allKeys.length === 0) {
@@ -78,52 +82,52 @@ export const getRoundRobinApiKey = async () => {
     }
     
     // Find the key with minimum allocation count
-    const minAllocationCount = allKeys[0].allocationCount;
-    const candidateKeys = allKeys.filter(key => key.allocationCount === minAllocationCount);
+    const minAllocationCount = (allKeys[0] as any).allocationCount || 0;
+    const candidateKeys = allKeys.filter(key => (key as any).allocationCount === minAllocationCount);
     
     console.log(`[${timestamp}] 🎯 Found ${candidateKeys.length} keys with minimum allocation count: ${minAllocationCount}`);
     
     // Try each candidate key until we find a valid one
     for (const keyData of candidateKeys) {
-      const maskedKey = `${keyData.apiKey.substring(0, 8)}...`;
+      const maskedKey = `${(keyData as any).apiKey.substring(0, 8)}...`;
       console.log(`[${timestamp}] 🧪 Testing ${keyData.source} key ${maskedKey}...`);
       
       // Validate the API key
-      const validation = await validateGeminiApiKey(keyData.apiKey);
+      const validation = await validateGeminiApiKey((keyData as any).apiKey);
       
       if (validation.isValid) {
         // Key is valid, update allocation count and return
         console.log(`[${timestamp}] ✅ Key ${maskedKey} is valid, allocating...`);
         
         if (keyData.source === 'admin') {
-          await ApiKey.findByIdAndUpdate(keyData._id, {
+          await ApiKey.findByIdAndUpdate((keyData as any)._id, {
             $inc: { allocationCount: 1, usageCount: 1 },
             lastUsed: new Date(),
             lastValidated: new Date()
           });
         } else {
-          await DonatedApiKey.findByIdAndUpdate(keyData._id, {
+          await DonatedApiKey.findByIdAndUpdate((keyData as any)._id, {
             $inc: { allocationCount: 1, usageCount: 1 },
             lastUsed: new Date(),
             lastValidated: new Date()
           });
         }
         
-        console.log(`[${timestamp}] 📊 Updated ${keyData.source} key allocation count to ${keyData.allocationCount + 1}`);
-        return keyData.apiKey;
+        console.log(`[${timestamp}] 📊 Updated ${keyData.source} key allocation count to ${(keyData as any).allocationCount + 1}`);
+        return (keyData as any).apiKey;
       } else {
         // Key is invalid, mark as deactivated
         console.log(`[${timestamp}] ❌ Key ${maskedKey} is invalid: ${validation.error}`);
         
         if (keyData.source === 'admin') {
-          await ApiKey.findByIdAndUpdate(keyData._id, {
+          await ApiKey.findByIdAndUpdate((keyData as any)._id, {
             status: 'deactivated',
             isActive: false,
             validationError: validation.error,
             lastValidated: new Date()
           });
         } else {
-          await DonatedApiKey.findByIdAndUpdate(keyData._id, {
+          await DonatedApiKey.findByIdAndUpdate((keyData as any)._id, {
             status: 'deactivated',
             isActive: false,
             validationError: validation.error,
@@ -137,7 +141,7 @@ export const getRoundRobinApiKey = async () => {
     console.log(`[${timestamp}] ❌ All candidate keys were invalid, trying next batch...`);
     
     // Try to find keys with the next lowest allocation count
-    const remainingKeys = allKeys.filter(key => key.allocationCount > minAllocationCount);
+    const remainingKeys = allKeys.filter(key => (key as any).allocationCount > minAllocationCount);
     
     if (remainingKeys.length === 0) {
       throw new Error('All API keys have been deactivated due to validation failures');
@@ -221,7 +225,7 @@ export const trackApiKeyAllocation = async (responseTime = 0) => {
     }
     
     // Update daily stats
-    let dailyStat = serverUsage.dailyStats.find(stat => 
+    let dailyStat = serverUsage.dailyStats.find((stat: any) => 
       stat.date.getTime() === today.getTime()
     );
     
@@ -249,7 +253,7 @@ export const trackApiKeyAllocation = async (responseTime = 0) => {
     }
     
     // Update hourly stats
-    let hourlyStat = serverUsage.hourlyStats.find(stat => 
+    let hourlyStat = serverUsage.hourlyStats.find((stat: any) => 
       stat.timestamp.getTime() === currentHour.getTime()
     );
     
@@ -272,12 +276,12 @@ export const trackApiKeyAllocation = async (responseTime = 0) => {
     // Keep only last 30 days of daily stats
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    serverUsage.dailyStats = serverUsage.dailyStats.filter(stat => stat.date >= thirtyDaysAgo);
+    serverUsage.dailyStats = serverUsage.dailyStats.filter((stat: any) => stat.date >= thirtyDaysAgo);
     
     // Keep only last 24 hours of hourly stats
     const twentyFourHoursAgo = new Date();
     twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
-    serverUsage.hourlyStats = serverUsage.hourlyStats.filter(stat => stat.timestamp >= twentyFourHoursAgo);
+    serverUsage.hourlyStats = serverUsage.hourlyStats.filter((stat: any) => stat.timestamp >= twentyFourHoursAgo);
     
     await serverUsage.save();
     
@@ -309,7 +313,7 @@ export const trackFailedRequest = async (error: string | null = null) => {
     serverUsage.failedRequests += 1;
     
     // Update daily stats
-    let dailyStat = serverUsage.dailyStats.find(stat => 
+    let dailyStat = serverUsage.dailyStats.find((stat: any) => 
       stat.date.getTime() === today.getTime()
     );
     

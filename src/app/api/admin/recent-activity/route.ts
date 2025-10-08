@@ -4,6 +4,16 @@ import { ApiKey, DonatedApiKey, User } from '@/lib/models';
 import { authenticateToken } from '@/lib/auth';
 import { addCorsHeaders, handleCors } from '@/lib/cors';
 
+interface Activity {
+  type: string;
+  action: string;
+  details: string;
+  timestamp: Date;
+  source: string;
+  keyId?: string;
+  userId?: string;
+}
+
 export async function GET(req: NextRequest) {
   // Handle CORS
   const corsResponse = handleCors(req);
@@ -40,7 +50,7 @@ export async function GET(req: NextRequest) {
         .select('email createdAt lastLogin')
     ]);
 
-    const activities = [];
+    const activities: Activity[] = [];
 
     // Add API key activities
     recentApiKeys.forEach(key => {

@@ -51,6 +51,6 @@ export const authenticateAdmin = (req: NextRequest): { user: JWTPayload | null; 
 
 // Generate JWT token
 export const generateToken = (payload: JWTPayload, expiresIn: string = '30d'): string => {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn } as jwt.SignOptions);
 };
 
