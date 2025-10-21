@@ -9,28 +9,8 @@ export default function Home() {
             Kimaaka Server
           </h1>
           <p className="text-xl text-gray-600 mb-8">
-            API Server with Vercel Analytics & Speed Insights
+            API Server for Gemini Key Management
           </p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className="bg-green-50 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-green-800 mb-2">
-                📊 Analytics
-              </h3>
-              <p className="text-green-700">
-                Track page views, user interactions, and performance metrics
-              </p>
-            </div>
-            
-            <div className="bg-blue-50 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-blue-800 mb-2">
-                ⚡ Speed Insights
-              </h3>
-              <p className="text-blue-700">
-                Monitor Core Web Vitals and performance optimizations
-              </p>
-            </div>
-          </div>
           
           <div className="space-y-4">
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">
@@ -68,13 +48,6 @@ export default function Home() {
                 <p className="text-gray-600">Admin statistics</p>
               </div>
             </div>
-          </div>
-          
-          <div className="mt-8 p-4 bg-yellow-50 rounded-lg">
-            <p className="text-yellow-800">
-              <strong>Analytics Active:</strong> This page is now being tracked by Vercel Analytics and Speed Insights.
-              Visit your Vercel dashboard to view real-time metrics.
-            </p>
           </div>
         </div>
       </div>
