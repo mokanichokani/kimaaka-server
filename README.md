@@ -1,271 +1,299 @@
-# Next.js API Server - Kimaaka Gemini API Key Management
+# Kimaaka Server
 
-This is a Next.js-based API server that replicates all the functionality of the original Express server for managing Gemini API keys. It provides the same endpoints and features but built with Next.js App Router and TypeScript.
+A Next.js API server for managing Gemini API keys with user authentication, admin dashboard, and comprehensive analytics. Built with TypeScript, MongoDB, and deployed on Vercel with integrated analytics and performance monitoring.
 
 ## 🚀 Features
 
-- **API Key Management**: Round-robin allocation of Gemini API keys
-- **User Authentication**: JWT-based authentication for users and admins
-- **Admin Dashboard**: Comprehensive admin interface for managing API keys and users
-- **Usage Tracking**: Detailed analytics and usage statistics
-- **CORS Support**: Full CORS support for browser extensions and web apps
-- **MongoDB Integration**: Persistent storage with Mongoose ODM
-- **TypeScript**: Full type safety throughout the application
+- **API Key Management**: Round-robin distribution of Gemini API keys
+- **User Authentication**: JWT-based authentication system
+- **Admin Dashboard**: Complete admin interface for managing API keys and users
+- **Key Donation System**: Users can donate their API keys to the pool
+- **Analytics & Monitoring**: Vercel Analytics and Speed Insights integration
+- **Health Monitoring**: Comprehensive health checks and server statistics
+- **CORS Support**: Full CORS configuration for cross-origin requests
+- **Usage Tracking**: Detailed usage statistics and performance metrics
 
-## 📋 API Endpoints
+## 🛠️ Tech Stack
+
+- **Framework**: Next.js 15.5.4 with App Router
+- **Language**: TypeScript
+- **Database**: MongoDB with Mongoose ODM
+- **Authentication**: JWT (jsonwebtoken)
+- **Password Hashing**: bcryptjs
+- **Styling**: Tailwind CSS
+- **Deployment**: Vercel
+- **Analytics**: Vercel Analytics & Speed Insights
+- **CORS**: Built-in CORS handling
+
+## 📋 Prerequisites
+
+- Node.js 18+ 
+- MongoDB database (local or cloud)
+- npm or yarn package manager
+
+## 🔧 Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd server
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Environment Setup**
+   Create a `.env.local` file in the root directory:
+   ```env
+   MONGODB_URI=mongodb://localhost:27017/kimaaka
+   JWT_SECRET=your-super-secret-jwt-key
+   RENDER_EXTERNAL_URL=http://localhost:3000
+   ```
+
+4. **Database Setup**
+   Make sure MongoDB is running and accessible with the URI specified in your environment variables.
+
+5. **Create Admin User**
+   ```bash
+   npm run create-admin
+   ```
+   Follow the prompts to create your first admin user.
+
+## 🚀 Development
+
+1. **Start the development server**
+   ```bash
+   npm run dev
+   ```
+
+2. **Run tests**
+   ```bash
+   npm test
+   ```
+
+3. **Build for production**
+   ```bash
+   npm run build
+   npm start
+   ```
+
+## 📚 API Endpoints
 
 ### Public Endpoints
-- `GET /api/health` - Health check endpoint
-- `GET /api/gemini-key` - Get API key using round-robin allocation
-- `POST /api/donate-key` - Donate an API key
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/health` | Health check and server statistics |
+| `POST` | `/api/signup` | User registration |
+| `POST` | `/api/login` | User authentication |
+| `GET` | `/api/verify` | Token verification |
+| `GET` | `/api/gemini-key` | Request API key (round-robin) |
+| `POST` | `/api/donate-key` | Donate API key to pool |
+| `POST` | `/api/logout` | User logout |
+
+### Admin Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/admin/auth/login` | Admin authentication |
+| `GET` | `/api/admin/auth/verify` | Admin token verification |
+| `GET` | `/api/admin/users` | List all users |
+| `GET` | `/api/admin/stats` | Server statistics |
+| `GET` | `/api/admin/api-keys` | Manage API keys |
+| `POST` | `/api/admin/api-keys` | Add new API key |
+| `GET` | `/api/admin/api-keys/validate-all` | Validate all API keys |
+| `GET` | `/api/admin/recent-activity` | Recent activity logs |
+| `GET` | `/api/admin/usage-statistics` | Usage statistics |
+
+### Convenience Routes
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/gemini-key` | Alias for `/api/gemini-key` |
+| `POST` | `/donate-key` | Alias for `/api/donate-key` |
+
+## 🗄️ Database Models
+
+### User
+- `email`: User email (unique)
+- `password`: Hashed password
+- `isAdmin`: Admin status
+- `createdAt`: Registration date
+
+### AdminUser
+- `username`: Admin username (unique)
+- `password`: Hashed password
+- `role`: 'admin' or 'viewer'
+- `isDefault`: Default admin flag
+- `lastLogin`: Last login timestamp
+- `createdAt`: Creation date
+- `createdBy`: Creator identifier
+
+### ApiKey
+- `keyName`: Key identifier
+- `apiKey`: Actual API key
+- `status`: 'active' or 'deactivated'
+- `usageCount`: Number of allocations
+- `allocationCount`: Total allocations
+- `lastUsed`: Last usage timestamp
+- `lastValidated`: Last validation timestamp
+- `validationError`: Validation error message
+- `description`: Key description
+- `source`: 'admin' or 'donated'
+
+### DonatedApiKey
+- `apiKey`: Donated API key
+- `donorEmail`: Donor email
+- `status`: 'active' or 'deactivated'
+- `usageCount`: Usage statistics
+- `isValidated`: Validation status
+- `source`: Source identifier
+
+### ServerUsage
+- `serverUrl`: Server URL
+- `port`: Server port
+- `totalAllocations`: Total API key allocations
+- `totalApiCalls`: Total API calls
+- `successfulRequests`: Successful requests count
+- `failedRequests`: Failed requests count
+- `averageResponseTime`: Average response time
+- `dailyStats`: Daily usage statistics
+- `hourlyStats`: Hourly usage statistics
+
+## 🔐 Authentication
 
 ### User Authentication
-- `POST /api/signup` - User registration
-- `POST /api/login` - User login
-- `GET /api/verify` - Verify JWT token
-- `POST /api/logout` - User logout
-- `POST /api/create-admin` - Create first admin user
+1. **Signup**: `POST /api/signup` with email and password
+2. **Login**: `POST /api/login` with email and password
+3. **Token**: JWT token returned for authenticated requests
+4. **Verification**: `GET /api/verify` with Bearer token
 
 ### Admin Authentication
-- `POST /api/admin/auth/login` - Admin login
-- `GET /api/admin/auth/verify` - Verify admin token
-- `GET /api/admin/auth/users` - Get all admin users
-- `POST /api/admin/auth/users` - Create new admin user
+1. **Login**: `POST /api/admin/auth/login` with username and password
+2. **Token**: JWT token for admin operations
+3. **Verification**: `GET /api/admin/auth/verify` with Bearer token
 
-### Admin Management
-- `GET /api/admin/stats` - Get comprehensive statistics
-- `GET /api/admin/api-keys` - Get all API keys
-- `POST /api/admin/api-keys` - Add new API key
-- `GET /api/admin/recent-activity` - Get recent activity
-- `GET /api/admin/usage-statistics` - Get detailed usage statistics
-- `GET /api/admin/server-usage` - Get server usage data
+## 📊 Analytics & Monitoring
 
-## 🛠️ Installation & Setup
+The application includes comprehensive monitoring:
 
-### Prerequisites
-- Node.js 18+ 
-- MongoDB database
-- npm or yarn
-
-### 1. Clone and Install Dependencies
-
-```bash
-cd nextjs-api-server
-npm install
-```
-
-### 2. Environment Configuration
-
-Create a `.env.local` file in the root directory:
-
-```env
-# MongoDB Connection
-MONGODB_URI=mongodb://localhost:27017/kimaaka-server
-
-# JWT Secret for token generation
-JWT_SECRET=your-super-secret-jwt-key-here
-
-# Server Configuration
-PORT=3000
-
-# Optional: External URL for production
-RENDER_EXTERNAL_URL=https://your-app.onrender.com
-```
-
-### 3. Database Setup
-
-Make sure MongoDB is running and accessible at the URI specified in your environment variables.
-
-### 4. Create Admin User
-
-```bash
-# Create default admin (username: admin, password: admin123)
-npm run setup-admin
-
-# Or create custom admin
-npm run create-admin
-```
-
-### 5. Start the Server
-
-```bash
-# Development
-npm run dev
-
-# Production
-npm run build
-npm start
-```
-
-The server will be available at `http://localhost:3000`
-
-## 🔧 Configuration
-
-### Environment Variables
-
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `MONGODB_URI` | MongoDB connection string | Yes | - |
-| `JWT_SECRET` | Secret key for JWT tokens | Yes | - |
-| `PORT` | Server port | No | 3000 |
-| `RENDER_EXTERNAL_URL` | External URL for production | No | - |
-
-### CORS Configuration
-
-The server is configured to allow requests from:
-- Chrome extensions (`chrome-extension://`)
-- Firefox extensions (`moz-extension://`)
-- Localhost development
-- Admin dashboard domains
-- All origins (configurable)
-
-## 📊 Usage Examples
-
-### Get API Key
-```bash
-curl -X GET http://localhost:3000/api/gemini-key
-```
-
-### Donate API Key
-```bash
-curl -X POST http://localhost:3000/api/donate-key \
-  -H "Content-Type: application/json" \
-  -d '{"apiKey": "your-gemini-api-key", "donorEmail": "donor@example.com"}'
-```
-
-### User Login
-```bash
-curl -X POST http://localhost:3000/api/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com", "password": "password123"}'
-```
-
-### Admin Login
-```bash
-curl -X POST http://localhost:3000/api/admin/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "admin123"}'
-```
-
-## 🔄 Migration from Express Server
-
-### Key Differences
-
-1. **Framework**: Next.js App Router instead of Express
-2. **File Structure**: API routes in `app/api/` directory
-3. **TypeScript**: Full TypeScript support
-4. **Database Connection**: Cached connection for better performance
-5. **CORS**: Built-in CORS handling
-
-### API Compatibility
-
-All endpoints maintain the same:
-- URL structure
-- Request/response format
-- Authentication methods
-- Error handling
-
-### Changes Required in Client Applications
-
-**No changes required!** The API endpoints are identical to the original Express server. Your existing client applications should work without any modifications.
-
-### Database Migration
-
-The database schemas are identical, so you can:
-1. Use the same MongoDB database
-2. Keep existing data
-3. No migration scripts needed
-
-## 🏗️ Project Structure
-
-```
-nextjs-api-server/
-├── src/
-│   ├── app/
-│   │   └── api/                 # API routes
-│   │       ├── health/
-│   │       ├── gemini-key/
-│   │       ├── donate-key/
-│   │       ├── signup/
-│   │       ├── login/
-│   │       ├── verify/
-│   │       ├── logout/
-│   │       ├── create-admin/
-│   │       └── admin/
-│   │           ├── auth/
-│   │           ├── stats/
-│   │           └── api-keys/
-│   └── lib/
-│       ├── mongodb.ts          # Database connection
-│       ├── models.ts           # Mongoose schemas
-│       ├── auth.ts             # Authentication utilities
-│       ├── cors.ts             # CORS configuration
-│       └── helpers.ts          # Helper functions
-├── scripts/
-│   ├── create-admin.js         # Create admin user
-│   └── setup-admin.js          # Setup default admin
-├── .env.local.example          # Environment variables template
-├── next.config.js              # Next.js configuration
-└── package.json
-```
+- **Vercel Analytics**: Page views and user interactions
+- **Speed Insights**: Core Web Vitals and performance metrics
+- **Health Checks**: Database connectivity and server status
+- **Usage Statistics**: API key usage and allocation tracking
+- **Performance Metrics**: Response times and error rates
 
 ## 🚀 Deployment
 
-### Vercel
-1. Connect your GitHub repository to Vercel
-2. Set environment variables in Vercel dashboard
-3. Deploy automatically on push
+### Vercel Deployment
 
-### Render
-1. Connect your GitHub repository to Render
-2. Set environment variables in Render dashboard
-3. Deploy as a Web Service
+1. **Connect to Vercel**
+   ```bash
+   vercel login
+   vercel
+   ```
 
-### Docker
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-RUN npm run build
-EXPOSE 3000
-CMD ["npm", "start"]
+2. **Environment Variables**
+   Set the following in Vercel dashboard:
+   - `MONGODB_URI`: Your MongoDB connection string
+   - `JWT_SECRET`: Secret key for JWT tokens
+   - `RENDER_EXTERNAL_URL`: Your Vercel app URL
+
+3. **Deploy**
+   ```bash
+   vercel --prod
+   ```
+
+### Configuration
+
+The `vercel.json` file includes:
+- CORS headers for all API routes
+- Function timeout configuration (30 seconds)
+- URL rewrites for convenience endpoints
+
+## 🧪 Testing
+
+Run the comprehensive API test suite:
+
+```bash
+npm test
 ```
 
-## 🔍 Monitoring & Logging
+The test suite covers:
+- Health checks
+- User authentication flow
+- Admin authentication
+- API key management
+- Token verification
+- Error handling
 
-The server includes comprehensive logging for:
-- API key allocations
-- Authentication attempts
-- Error tracking
-- Performance metrics
-- Usage statistics
+## 📝 Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start development server with Turbopack |
+| `npm run build` | Build for production with Turbopack |
+| `npm start` | Start production server |
+| `npm run lint` | Run ESLint |
+| `npm test` | Run API tests |
+| `npm run create-admin` | Create admin user interactively |
+| `npm run setup-admin` | Setup admin user |
+
+## 🔧 Configuration
+
+### CORS
+- Configured for cross-origin requests
+- Supports all common HTTP methods
+- Allows Content-Type and Authorization headers
+
+### Security
+- Password hashing with bcryptjs (12 rounds)
+- JWT token authentication
+- Input validation and sanitization
+- CORS protection
+
+### Performance
+- Round-robin API key distribution
+- Connection pooling for MongoDB
+- Response time tracking
+- Memory usage monitoring
+
+## 📈 Usage Statistics
+
+The server tracks comprehensive usage statistics:
+
+- **API Key Allocations**: Round-robin distribution tracking
+- **Request Metrics**: Success/failure rates and response times
+- **User Activity**: Registration and login patterns
+- **Server Performance**: Memory usage and uptime
+- **Daily/Hourly Stats**: Detailed time-based analytics
+
+## 🛠️ Development Tools
+
+- **TypeScript**: Full type safety
+- **ESLint**: Code quality and consistency
+- **Tailwind CSS**: Utility-first styling
+- **Mongoose**: MongoDB object modeling
+- **Next.js**: React framework with API routes
+
+## 📄 License
+
+This project is private and proprietary.
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests if applicable
+4. Run tests to ensure everything works
 5. Submit a pull request
 
-## 📝 License
+## 📞 Support
 
-This project is licensed under the MIT License.
+For support and questions, please contact the development team.
 
-## 🆘 Support
+---
 
-For support and questions:
-1. Check the documentation
-2. Review the API endpoints
-3. Check the logs for errors
-4. Create an issue in the repository
-
-## 🔄 Updates
-
-To update the server:
-1. Pull the latest changes
-2. Run `npm install` to update dependencies
-3. Restart the server
-4. Check for any breaking changes in the changelog
+**Built with ❤️ using Next.js, TypeScript, and MongoDB**

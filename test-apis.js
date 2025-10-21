@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = 'https://kimaaka-server.vercel.app';
 
 async function testEndpoint(method, endpoint, data = null, headers = {}) {
   try {
@@ -128,7 +128,7 @@ async function main() {
   const serverRunning = await checkServer();
   
   if (!serverRunning) {
-    console.log('❌ Server is not running at http://localhost:3000');
+    console.log('❌ Server is not running at https://kimaaka-server.vercel.app');
     console.log('Please start the server with: npm run dev');
     process.exit(1);
   }
